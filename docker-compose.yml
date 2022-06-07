@@ -1,0 +1,69 @@
+version: '3.7'
+
+# volumes:
+#   prometheus_data:
+#     external: true
+#   grafana_data:
+#     external: true
+
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    volumes:
+      - /data/prometheus/config/:/etc/prometheus/
+      - /data/prometheus/prometheus-volume:/prometheus  # volumes 설정한다면 이부분 주석처리
+      #- prometheus_data:/prometheus
+    ports:
+      - 9090:9090
+    command: # web.enalbe-lifecycle은 api 재시작없이 설정파일들을 reload 할 수 있게 해줌
+      - '--web.enable-lifecycle'
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    restart: always
+    networks:
+      - promnet
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    depends_on:
+      - prometheus
+    ports:
+      - 3000:3000
+    volumes:
+      - /data/prometheus/grafana/grafana-volume:/var/lib/grafana # volumes 설정한다면 이부분 주석처리
+      - /data/prometheus/grafana/config/grafana-init.ini:/etc/grafana/grafana.ini
+      #- grafana_data:/var/lib/grafana
+    restart: always
+    networks:
+      - promnet
+
+  # postgres-exporter:
+  #   image: prometheuscommunity/postgres-exporter
+  #   ports:
+  #     - 9187:9187
+  #   environment:
+  #     #- DATA_SOURCE_NAME: "postgresql://<userid>:<password>@<ip>:5432/testdb?sslmode=disable"
+  #     # - DATA_SOURCE_URI=<ip>:5432/testdb?sslmode=disable
+  #     # - DATA_SOURCE_USER=test
+  #     # - DATA_SOURCE_PASS=123
+  #   links:
+  #     - prometheus
+
+  alertmanager:
+    image: prom/alertmanager
+    container_name: alertmanager
+    user: root
+    ports: 
+      - 9093:9093
+    volumes:
+      - /data/prometheus/alertmanager/config/:/etc/alertmanager/
+    networks:
+      - promnet
+    restart: always
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+
+networks:
+  promnet:
+    driver: bridge
